@@ -7,7 +7,14 @@ typedef int Elem_t;
 typedef unsigned long long canary_t;
 
 #define ON_OFF 1
-#define STACK_DUMP(stk) Stack_Dump(stk,(char*)__FILE__,__LINE__,__func__);
+#define STACK_DUMP(stk) Stack_Dump(stk,(char*)__FILE__, __LINE__, __func__);
+#define stack_t "%d "
+
+#if ON_OFF == 0
+    #define size_canary (2 * sizeof ( canary_t ))
+#else
+    #define size_canary 0
+#endif
 
 enum Errors{
     NO_ERROR = 0,
@@ -21,6 +28,7 @@ void Put_canary(struct Stack* stk, struct Canary* canary, int on_off);
 void Canareyca_Protection(struct Stack* stk, struct Canary* canary, int on_off);
 int Check_Canareyka(struct Canary* canary, int on_off);
 int Hash_Protection(struct Stack* stk);
+int Calculate_Hash(struct Stack* stk);
 struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off);
 int Stack_Dtor(struct Stack* stk);
 int Stack_Push(struct Stack* stk, Elem_t val, struct Canary* canary);
@@ -61,6 +69,20 @@ struct ERRORS
     int* err;
 };
 
+int Calculate_Hash(struct Stack* stk)
+{
+    stk -> hash = 0;
+
+    for (int i = 0 ; i < stk -> size; i++)
+    {
+        stk -> hash += *(stk -> data + i);
+    }
+
+    stk -> hash = stk -> hash * (stk -> size) * (stk -> capacity);
+
+    return stk -> hash;
+}
+
 void Put_canary(struct Stack* stk, struct Canary* canary, int on_off)
 {
     canary -> left_canary_data =(canary_t*)  stk -> data;
@@ -72,7 +94,7 @@ void Put_canary(struct Stack* stk, struct Canary* canary, int on_off)
     *(canary -> left_canary_stk) = 1111111;
     *(canary -> right_canary_stk ) = 1111111;
 
-    stk -> data = (Elem_t*)(((canary_t*)stk -> data) + 1);
+    stk -> data = (Elem_t*) ((canary_t*)(stk -> data) + 1);
 }
 
 void Canareyca_Protection(struct Stack* stk, struct Canary* canary, int on_off)                          // print canareyka protection
@@ -95,13 +117,14 @@ void Canareyca_Protection(struct Stack* stk, struct Canary* canary, int on_off) 
     {
         stk -> data = ( Elem_t* ) calloc ( stk -> capacity, sizeof ( Elem_t ) );
     }
+
     printf("dat_id = %d\n", *(stk -> data));
 
 }
 
 int Check_Canareyka(struct Canary* canary, int on_off)
 {
-    if (on_off == 0)
+    if (ON_OFF == 0)
     {
         return 0;
     }
@@ -119,13 +142,9 @@ int Check_Canareyka(struct Canary* canary, int on_off)
     return 0;
 }
 
-int Hash_Protection(struct Stack* stk)       // print do kontsa
- {
-    for (int i = 0 ; i < stk -> size; i++)
-    {
-        stk -> hash += *(stk -> data + i);
-    }
-    stk -> hash = stk -> hash * (stk -> size) * (stk -> capacity);
+int Hash_Protection(struct Stack* stk)
+{
+    Calculate_Hash(stk);
 
     if (stk -> hash == stk -> last_hash)
     {
@@ -134,11 +153,12 @@ int Hash_Protection(struct Stack* stk)       // print do kontsa
     }
     else
     {
-        printf("\nSTACK WAS CHANGED, HASH DOES NOT EQUAL PREVIOUS HASH!!!!\n SHIT!!!!\n");
+        printf("\nSTACK WAS CHANGED, HASH DOES NOT EQUAL PREVIOUS HASH!!!!\n SHIT!!!!\n last_hash was: %d", stk -> last_hash);
+
         stk -> last_hash = stk -> hash;
         return 1;
     }
- }
+}
 
 void Clean_buf()
 {
@@ -149,37 +169,29 @@ void Clean_buf()
 struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off)
 {
     //assert(stk -> data != NULL);
-
+    struct Stack* stk = (struct Stack*) calloc( sizeof ( struct Stack ) + 2 * sizeof(canary_t), sizeof ( char ));
     if (on_off == 1)
     {
-        struct Stack* stk = (struct Stack*) calloc(sizeof(struct Stack) + 2 * sizeof(canary_t), sizeof(char));
         stk = (Stack*)((canary_t*)stk + 1);
     }
-    else
-    {
-        struct Stack* stk = (struct Stack*) calloc(sizeof(struct Stack), sizeof(char));
-    }
-    stk->capacity = capacity;
+
+    stk -> capacity = capacity;
     Canareyca_Protection(stk, canary, ON_OFF);
     stk -> size = 0;
     stk -> poizon = -10000;
 
-    for (int i = 0 ; i < stk -> size; i++)
-    {
-        stk -> hash += *(stk -> data + i);
-    }
-    stk -> hash = stk -> hash * (stk -> size) * (stk -> capacity);
+    Calculate_Hash(stk);
 
     for (int i = 0; i < stk -> capacity; i++)
     {
-        //printf("data[%d] = %d\n", i, stk -> data[i]);
         *(stk -> data + i) = stk -> poizon;
     }
     printf("dat_id = %d\n", *(stk -> data));
+
     printf("left conery data = %llu, id_left = %p\n", *(canary -> left_canary_data), canary -> left_canary_data);
     printf("right conery data = %llu, id_right = %p\n\n", *(canary -> right_canary_data), canary -> right_canary_data);
+
     ERR -> err = ( int* ) calloc ( 4, sizeof ( int ) );
-    //stk -> data = NULL;
 
     return stk;
 }
@@ -208,17 +220,18 @@ int Stack_Push(struct Stack* stk, Elem_t val, struct Canary* canary)
 
     if(stk -> size == stk -> capacity)
     {
-        Stack_Realloc(stk, canary); // do bigger in 2
-        stk -> capacity = (stk -> capacity) * 2;
+        Stack_Realloc(stk, canary);
     }
     stk -> data[stk -> size++] = val;
+
+    stk -> last_hash = Calculate_Hash(stk);
 
     return 0;
 }
 
-int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary, int on_off)  // mb error tyt potom
+int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)  // mb error tyt potom
 {
-    if (StackErr(stk) != 0 || Check_Canareyka(canary, ON_OFF) == 0 || Hash_Protection(stk) == 1)
+    if (StackErr(stk) != 0 || Check_Canareyka(canary, ON_OFF) != 0 || Hash_Protection(stk) != 0)
     {
         STACK_DUMP(stk)
         return 0;
@@ -227,31 +240,28 @@ int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary, int on_
     if (stk -> size <= (stk -> capacity) / 2)
     {
         Stack_Realloc_Press(stk, canary);
-        stk -> capacity = (stk -> capacity) / 2;
-
     }
     *(Ret_val) = stk -> data[stk -> size];
     stk -> data[stk -> size] = stk -> poizon;
 
+    stk -> last_hash = Calculate_Hash(stk);
+
     return 0;
 }
 
-int Stack_Realloc(struct Stack* stk, struct Canary* canary)
+int Stack_Realloc(struct Stack* stk, struct Canary* canary )
 {
-    if (on_off == 1)
+    if (ON_OFF == 1)
     {
-        stk -> data = (Elem_t*) realloc( (Elem_t*)((canary_t*) (stk -> data) - 1), (stk -> capacity) * 2 * sizeof(Elem_t) + sizeof(canary_t) * 2;
         stk -> data = (Elem_t*)((canary_t*) (stk -> data) - 1);
     }
-    else
-    {
-        stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) * 2 * sizeof(Elem_t));
-        canary -> right_canary_data =  canary -> right_canary_data + stk -> capacity;
-    }
+
+    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) * 2 * sizeof(Elem_t) + 2 * sizeof(canary_t));
+    stk -> capacity = stk -> capacity * 2;
 
     Put_canary(stk, canary, ON_OFF);
 
-    for (int i = stk -> size; i < stk -> capacity * 2; i++)
+    for (int i = stk -> size; i < stk -> capacity; i++)
     {
         stk -> data[i] = stk -> poizon;
     }
@@ -261,16 +271,15 @@ int Stack_Realloc(struct Stack* stk, struct Canary* canary)
 
 int Stack_Realloc_Press(struct Stack* stk, struct Canary* canary)
 {
-    if (on_off == 1)
+
+    if (ON_OFF == 1)
     {
-        stk -> data = (Elem_t*) realloc( (Elem_t*)((canary_t*) (stk -> data) - 1), (stk -> capacity) / 2 * sizeof(Elem_t) + sizeof(canary_t) * 2;
         stk -> data = (Elem_t*)((canary_t*) (stk -> data) - 1);
     }
-    else
-    {
-        stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t));
 
-    }
+    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t) + size_canary);
+
+    stk -> capacity = stk -> capacity / 2;
 
     Put_canary(stk, canary, ON_OFF);
 
@@ -279,7 +288,7 @@ int Stack_Realloc_Press(struct Stack* stk, struct Canary* canary)
 
 int Stack_Dump(struct Stack* stk, char* file , int line, const char* func)
 {
-    printf("\n\nin file: %s \nin: %d row \nin function: %s \nhash = %d\n", file, line, func, stk -> hash);
+    printf("\n\nin file: %s \nin: %d row \nin function: %s \nhash = %d \nlast_hash = %d\n", file, line, func, stk -> hash, stk -> last_hash);
     int Code_err = StackErr(stk);
     if (Code_err / 1000 == 1)
     {
@@ -318,7 +327,7 @@ void Print_data(struct Stack* stk)
 {
     for (size_t i = 0; i < stk -> capacity; i++)
     {
-        printf("<%d> ", stk -> data[i]);
+        printf(stack_t, stk -> data[i]);
     }
     printf("\n");
 }
