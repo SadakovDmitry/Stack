@@ -30,7 +30,7 @@ int Check_Canareyka(struct Canary* canary, int on_off);
 int Hash_Protection(struct Stack* stk);
 int Calculate_Hash(struct Stack* stk);
 struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off);
-int Stack_Dtor(struct Stack* stk);
+int Stack_Dtor(struct Stack* stk, struct Canary* canary);
 int Stack_Push(struct Stack* stk, Elem_t val, struct Canary* canary);
 int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary);
 int Stack_Dump(struct Stack* stk, char* file , int line, const char* func);
@@ -105,21 +105,11 @@ void Canareyca_Protection(struct Stack* stk, struct Canary* canary, int on_off) 
 
         Put_canary(stk, canary, ON_OFF);
 
-        printf("capacity = %d\n ", stk -> capacity);
-        printf("left conery data = %llu, id_left = %p\n", *(canary -> left_canary_data), canary -> left_canary_data);
-        printf("right conery data = %llu, id_right = %p\n\n", *(canary -> right_canary_data), canary -> right_canary_data);
-        printf("id_stk = %p\n", stk);
-        printf("left conery stk = %llu, id_left = %p\n", *(canary -> left_canary_stk), canary -> left_canary_stk);
-        printf("right conery stk = %llu, id_right = %p\n\n", *(canary -> right_canary_stk), canary -> right_canary_stk);
-
     }
     else
     {
         stk -> data = ( Elem_t* ) calloc ( stk -> capacity, sizeof ( Elem_t ) );
     }
-
-    printf("dat_id = %d\n", *(stk -> data));
-
 }
 
 int Check_Canareyka(struct Canary* canary, int on_off)
@@ -130,13 +120,13 @@ int Check_Canareyka(struct Canary* canary, int on_off)
     }
     else if (*(canary -> left_canary_data) != 1111111 || *(canary -> right_canary_data) != 1111111)
     {
-        printf("DATA WAS RUBBISHED!!!!!!\n");
+        printf("\nDATA WAS RUBBISHED!!!!!!\n");
         //printf("left_canary_data: %llu, right_canary_data: %llu \n", *(canary -> left_canary_data), *(canary -> right_canary_data));
         return 1;
     }
     else if (*(canary -> left_canary_stk) != 1111111 || *(canary -> right_canary_stk) != 1111111)
     {
-        printf("STACK WAS RUBBISHED!!!!!!\n");
+        printf("\nSTACK WAS RUBBISHED!!!!!!\n");
         return 1;
     }
     return 0;
@@ -153,7 +143,7 @@ int Hash_Protection(struct Stack* stk)
     }
     else
     {
-        printf("\nSTACK WAS CHANGED, HASH DOES NOT EQUAL PREVIOUS HASH!!!!\n SHIT!!!!\n last_hash was: %d", stk -> last_hash);
+        printf("\nSTACK WAS CHANGED, HASH DOES NOT EQUAL PREVIOUS HASH!!!!\n SHIT!!!!\n last_hash was: %d\n", stk -> last_hash);
 
         stk -> last_hash = stk -> hash;
         return 1;
@@ -170,13 +160,16 @@ struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canar
 {
     //assert(stk -> data != NULL);
     struct Stack* stk = (struct Stack*) calloc( sizeof ( struct Stack ) + 2 * sizeof(canary_t), sizeof ( char ));
+
     if (on_off == 1)
     {
         stk = (Stack*)((canary_t*)stk + 1);
     }
 
     stk -> capacity = capacity;
+
     Canareyca_Protection(stk, canary, ON_OFF);
+
     stk -> size = 0;
     stk -> poizon = -10000;
 
@@ -186,27 +179,21 @@ struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canar
     {
         *(stk -> data + i) = stk -> poizon;
     }
-    printf("dat_id = %d\n", *(stk -> data));
-
-    printf("left conery data = %llu, id_left = %p\n", *(canary -> left_canary_data), canary -> left_canary_data);
-    printf("right conery data = %llu, id_right = %p\n\n", *(canary -> right_canary_data), canary -> right_canary_data);
-
-    ERR -> err = ( int* ) calloc ( 4, sizeof ( int ) );
 
     return stk;
 }
 
-int Stack_Dtor(struct Stack* stk)
+int Stack_Dtor(struct Stack* stk, struct Canary* canary)
 {
-    free(stk -> data);
+    //free(stk -> data);
 
+    Elem_t Ret_val = 0;
 
-    /*Elem_t Ret_val = 0;
-    for (int i = 0; i < stk->size + 1; i++)
+    for (int i = 0; i < stk-> size + 1; i++)
     {
         Stack_Pop(stk, &Ret_val, canary);
     }
-    */
+
     return 0;
 }
 
@@ -222,6 +209,7 @@ int Stack_Push(struct Stack* stk, Elem_t val, struct Canary* canary)
     {
         Stack_Realloc(stk, canary);
     }
+
     stk -> data[stk -> size++] = val;
 
     stk -> last_hash = Calculate_Hash(stk);
@@ -236,13 +224,15 @@ int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)  // mb 
         STACK_DUMP(stk)
         return 0;
     }
-    (stk -> size)--;
+
     if (stk -> size <= (stk -> capacity) / 2)
     {
         Stack_Realloc_Press(stk, canary);
     }
+    (stk -> size)--;
     *(Ret_val) = stk -> data[stk -> size];
-    stk -> data[stk -> size] = stk -> poizon;
+
+    stk -> data[stk -> size ] = stk -> poizon;
 
     stk -> last_hash = Calculate_Hash(stk);
 
@@ -277,7 +267,7 @@ int Stack_Realloc_Press(struct Stack* stk, struct Canary* canary)
         stk -> data = (Elem_t*)((canary_t*) (stk -> data) - 1);
     }
 
-    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t) + size_canary);
+    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t) + 2 * sizeof(canary_t));
 
     stk -> capacity = stk -> capacity / 2;
 
@@ -289,7 +279,9 @@ int Stack_Realloc_Press(struct Stack* stk, struct Canary* canary)
 int Stack_Dump(struct Stack* stk, char* file , int line, const char* func)
 {
     printf("\n\nin file: %s \nin: %d row \nin function: %s \nhash = %d \nlast_hash = %d\n", file, line, func, stk -> hash, stk -> last_hash);
+
     int Code_err = StackErr(stk);
+
     if (Code_err / 1000 == 1)
     {
         printf("ERROR: capacity < size\n");
@@ -308,6 +300,7 @@ int Stack_Dump(struct Stack* stk, char* file , int line, const char* func)
     }
 
     printf("Stack[%p] \n{ \n    size = %d \n    capacity = %d \n    data[%p] \n        { \n", stk, stk ->size, stk -> capacity, stk -> data);
+
     for (int i = 0; i < stk -> capacity; i++)
     {
         if (i < stk -> size)
@@ -320,6 +313,7 @@ int Stack_Dump(struct Stack* stk, char* file , int line, const char* func)
         }
     }
     printf("        } \n    } \n");
+
     return 0;
 }
 
@@ -329,6 +323,7 @@ void Print_data(struct Stack* stk)
     {
         printf(stack_t, stk -> data[i]);
     }
+
     printf("\n");
 }
 
@@ -336,6 +331,7 @@ void Strinput(char* input_str)
 {
     int i = 0;
     char c = ' ';
+
     while ((c = getchar()) != '\n') {
         input_str[i] = c;
         i++;
@@ -347,6 +343,7 @@ int Cmp_two_str(char* input_str, char* answer)
 {
     int len = strlen(input_str);
     int i = 0;
+
     while (*(input_str + i) == *(answer + i))
     {
         i++;
@@ -366,6 +363,7 @@ void Cycle_push(struct Stack* stk, Elem_t* val, struct Canary* canary)
     while (true)
     {
         Clean_buf();
+
         printf("Do you want add anything? Print YES or NO. \n");
         char input_str[99] = {};
         char answer_yes[4] = "yes";
@@ -446,7 +444,7 @@ struct Canary canary = {};
 
 
 printf("Print capacity of stack: ");
-scanf("%d", &capacity);
+scanf(stack_t, &capacity);
 
 struct Stack* stk = Stack_Ctor( capacity, &ERR, &canary, ON_OFF);
 Print_data(stk);
@@ -456,7 +454,7 @@ Cycle_pop(stk, &Ret_val, &canary);
 
 Print_data(stk);
 
-Stack_Dtor(stk);
+Stack_Dtor(stk, &canary);
 
 Print_data(stk);
 }
