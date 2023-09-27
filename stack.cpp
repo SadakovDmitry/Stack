@@ -9,8 +9,9 @@ typedef unsigned long long canary_t;
 #define ON_OFF 1
 #define STACK_DUMP(stk) Stack_Dump(stk,(char*)__FILE__, __LINE__, __func__);
 #define stack_t "%d "
+//#define 2 * sizeof(canary_t) 0
 
-#if ON_OFF == 0
+#if ON_OFF == 1
     #define size_canary (2 * sizeof ( canary_t ))
 #else
     #define size_canary 0
@@ -162,7 +163,7 @@ void Clean_buf()
 struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off)                  //
 {
     //assert(stk -> data != NULL);
-    struct Stack* stk = (struct Stack*) calloc( sizeof ( struct Stack ) + 2 * sizeof(canary_t), sizeof ( char ));
+    struct Stack* stk = (struct Stack*) calloc( sizeof ( struct Stack ) + size_canary, sizeof ( char ));
 
     if (on_off == 1)
     {
@@ -249,7 +250,7 @@ int Stack_Realloc(struct Stack* stk, struct Canary* canary )         //
         stk -> data = (Elem_t*)((canary_t*) (stk -> data) - 1);
     }
 
-    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) * 2 * sizeof(Elem_t) + 2 * sizeof(canary_t));
+    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) * 2 * sizeof(Elem_t) + size_canary);
     stk -> capacity = stk -> capacity * 2;
 
     Put_canary(stk, canary, ON_OFF);
@@ -270,7 +271,7 @@ int Stack_Realloc_Press(struct Stack* stk, struct Canary* canary)
         stk -> data = (Elem_t*)((canary_t*) (stk -> data) - 1);
     }
 
-    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t) + 2 * sizeof(canary_t));
+    stk -> data = (Elem_t*) realloc( stk -> data, (stk -> capacity) / 2 * sizeof(Elem_t) + size_canary);
 
     stk -> capacity = stk -> capacity / 2;
 
