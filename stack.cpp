@@ -85,16 +85,19 @@ int Calculate_Hash(struct Stack* stk)
 
 void Put_canary(struct Stack* stk, struct Canary* canary, int on_off)
 {
-    canary -> left_canary_data =(canary_t*)  stk -> data;
-    canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity)) + 1;
-    canary -> left_canary_stk = ((canary_t*) stk) - 1;
-    canary -> right_canary_stk = (canary_t*)((char*) stk + sizeof(struct Stack));                              //pizdec nugno razobratca
-    *(canary -> left_canary_data) = 1111111;
-    *(canary -> right_canary_data ) = 1111111;
-    *(canary -> left_canary_stk) = 1111111;
-    *(canary -> right_canary_stk ) = 1111111;
+    if (ON_OFF == 1)
+    {
+        canary -> left_canary_data =(canary_t*)  stk -> data;
+        canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity)) + 1;
+        canary -> left_canary_stk = ((canary_t*) stk) - 1;
+        canary -> right_canary_stk = (canary_t*)((char*) stk + sizeof(struct Stack));                              //pizdec nugno razobratca
+        *(canary -> left_canary_data) = 1111111;
+        *(canary -> right_canary_data ) = 1111111;
+        *(canary -> left_canary_stk) = 1111111;
+        *(canary -> right_canary_stk ) = 1111111;
 
-    stk -> data = (Elem_t*) ((canary_t*)(stk -> data) + 1);
+        stk -> data = (Elem_t*) ((canary_t*)(stk -> data) + 1);
+    }
 }
 
 void Canareyca_Protection(struct Stack* stk, struct Canary* canary, int on_off)                          // print canareyka protection
@@ -156,7 +159,7 @@ void Clean_buf()
         ;
 }
 
-struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off)
+struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canary, int on_off)                  //
 {
     //assert(stk -> data != NULL);
     struct Stack* stk = (struct Stack*) calloc( sizeof ( struct Stack ) + 2 * sizeof(canary_t), sizeof ( char ));
@@ -173,7 +176,7 @@ struct Stack* Stack_Ctor( int capacity, struct ERRORS* ERR, struct Canary* canar
     stk -> size = 0;
     stk -> poizon = -10000;
 
-    Calculate_Hash(stk);
+    stk -> last_hash = Calculate_Hash(stk);
 
     for (int i = 0; i < stk -> capacity; i++)
     {
@@ -239,7 +242,7 @@ int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)  // mb 
     return 0;
 }
 
-int Stack_Realloc(struct Stack* stk, struct Canary* canary )
+int Stack_Realloc(struct Stack* stk, struct Canary* canary )         //
 {
     if (ON_OFF == 1)
     {
