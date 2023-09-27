@@ -9,7 +9,6 @@ typedef unsigned long long canary_t;
 #define ON_OFF 1
 #define STACK_DUMP(stk) Stack_Dump(stk,(char*)__FILE__, __LINE__, __func__);
 #define stack_t "%d "
-//#define 2 * sizeof(canary_t) 0
 
 #if ON_OFF == 1
     #define size_canary (2 * sizeof ( canary_t ))
@@ -22,7 +21,9 @@ enum Errors{
     DATA_NULL = 1,
     CAPACITY_ZERO = 2,
     STK_NULL = 3,
-    CAPASITY_TOO_SMALL = 4
+    CAPASITY_TOO_SMALL = 4,
+    DATA_WAS_RUBBISHED = 5,
+    STK_WAS_RUBBISHED = 6
 };
 
 void Put_canary(struct Stack* stk, struct Canary* canary, int on_off);
@@ -89,7 +90,7 @@ void Put_canary(struct Stack* stk, struct Canary* canary, int on_off)
     if (ON_OFF == 1)
     {
         canary -> left_canary_data =(canary_t*)  stk -> data;
-        canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity)) + 1;
+        canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity));
         canary -> left_canary_stk = ((canary_t*) stk) - 1;
         canary -> right_canary_stk = (canary_t*)((char*) stk + sizeof(struct Stack));                              //pizdec nugno razobratca
         *(canary -> left_canary_data) = 1111111;
@@ -120,20 +121,19 @@ int Check_Canareyka(struct Canary* canary, int on_off)
 {
     if (ON_OFF == 0)
     {
+        return 1;
+    }
+    else if (*(canary -> left_canary_data) != 111111 || *(canary -> right_canary_data) != 111111)
+    {
+
         return 0;
     }
-    else if (*(canary -> left_canary_data) != 1111111 || *(canary -> right_canary_data) != 1111111)
+    else if (*(canary -> left_canary_stk) != 111111 || *(canary -> right_canary_stk) != 111111)
     {
-        printf("\nDATA WAS RUBBISHED!!!!!!\n");
-        //printf("left_canary_data: %llu, right_canary_data: %llu \n", *(canary -> left_canary_data), *(canary -> right_canary_data));
-        return 1;
+
+        return 0;
     }
-    else if (*(canary -> left_canary_stk) != 1111111 || *(canary -> right_canary_stk) != 1111111)
-    {
-        printf("\nSTACK WAS RUBBISHED!!!!!!\n");
-        return 1;
-    }
-    return 0;
+    return 1;
 }
 
 int Hash_Protection(struct Stack* stk)
@@ -221,7 +221,7 @@ int Stack_Push(struct Stack* stk, Elem_t val, struct Canary* canary)
     return 0;
 }
 
-int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)  // mb error tyt potom
+int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)
 {
     if (StackErr(stk) != 0 || Check_Canareyka(canary, ON_OFF) != 0 || Hash_Protection(stk) != 0)
     {
@@ -243,7 +243,7 @@ int Stack_Pop(struct Stack* stk, Elem_t* Ret_val, struct Canary* canary)  // mb 
     return 0;
 }
 
-int Stack_Realloc(struct Stack* stk, struct Canary* canary )         //
+int Stack_Realloc(struct Stack* stk, struct Canary* canary )
 {
     if (ON_OFF == 1)
     {
