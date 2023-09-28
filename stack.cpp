@@ -329,12 +329,6 @@ int Stack_Dtor(struct Stack* stk, struct Canary* canary)
     assert(stk);
     assert(canary);
 
-    if (StackErr(stk, canary) != NO_ERROR)
-    {
-        STACK_DUMP(stk, canary)
-        return 0;
-    }
-
     Elem_t Ret_val = 0;
 
     for (int i = 0; i < stk-> size + 1; i++)
@@ -370,7 +364,7 @@ void Put_canary(struct Stack* stk, struct Canary* canary)
 
     #ifdef ON_OFF
     canary -> left_canary_data =(canary_t*)  stk -> data;
-    canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity) + 1);
+    canary -> right_canary_data = ((canary_t*)  (stk -> data + stk -> capacity));
     canary -> left_canary_stk = ((canary_t*) stk) - 1;
     canary -> right_canary_stk = (canary_t*)((char*) stk + sizeof(struct Stack));                              //pizdec nugno razobratca
     *(canary -> left_canary_data) = 1111111;
